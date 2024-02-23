@@ -12,7 +12,7 @@
     "react": "^18",
     "react-dom": "^18",
     "next": "14.1.0",
-    "simple-peer": "^16.0.0",
+    "peerjs": "^1.5.2",
     "socket.io-client": "^4.4.0"
   },
   "devDependencies": {

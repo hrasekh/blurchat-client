@@ -3,14 +3,15 @@ import { userMedia } from "@/lib/media";
 import { SocketContextType } from "@/types/socket";
 import { socket } from "@/lib/socket";
 // import { Peer } from "simple-peer";
+import { Peer } from "peerjs";
 
 export const SocketContext = createContext<SocketContextType>({
     myVideoRef: { current: null },
     userVideoRef: { current: null },
     me: "",
     user: "",
-    callUser: () => {},
-    answerCall: () => {}
+    callUser: () => { },
+    answerCall: () => { }
 });
 
 export const SocketProvider = ({ children }: { children: ReactNode }) => {
@@ -19,21 +20,38 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     const userVideoRef = useRef<HTMLVideoElement>(null);
     const [me, setMe] = useState("");
     const [stream, setStream] = useState<MediaStream | null>(null);
-    const [call, setCall] = useState({from: "", signalData: {}});
+    const [call, setCall] = useState({ from: "", signalData: {} });
+    const [peer, setPeer] = useState<Peer | null>(null);
+
     useEffect(() => {
-        async function getStream() {
+        async function getStream(socketId) {
             const myStream = await userMedia();
 
             if (myVideoRef.current) {
                 myVideoRef.current.srcObject = myStream;
             }
 
+            const myPeer = new Peer(socketId);
+            myPeer.on("call", (call) => {
+                console.log("Call received", call, stream);
+                call.answer(myStream); // Answer the call with an A/V stream.
+                call.on("stream", (remoteStream) => {
+                    if (userVideoRef.current) {
+                        userVideoRef.current.srcObject = remoteStream;
+                    }
+                });
+            })
+
+            setPeer(myPeer);
             setStream(myStream);
         }
 
-        const onConnect = () => { 
-            console.log("Socket Connected", socket);
-            setMe(socket.id || "") 
+        const onConnect = () => {
+            if (socket.id) {
+                
+                setMe(socket.id)
+                getStream(socket.id);
+            }
         }
         const onDisconnect = () => { setMe(""); }
 
@@ -43,9 +61,36 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
         socket.on("call-mode", (data: any) => {
             console.log("call mode", data);
             setCall(data)
+
+            if (stream && peer) {
+                console.log("Calling user", id);
+                console.log("Stream", stream);
+
+                const call = peer.call(id, stream);
+                call.on("stream", (remoteStream) => {
+                    console.log("Remote Stream", remoteStream);
+                    if (userVideoRef.current) {
+                        userVideoRef.current.srcObject = remoteStream;
+                    }
+                });
+
+                peer.on("call", (call) => {
+                    console.log("Call received", call);
+                    call.answer(stream);
+                    call.on("stream", (remoteStream) => {
+                        if (userVideoRef.current) {
+                            userVideoRef.current.srcObject = remoteStream;
+                        }
+                    });
+                });
+
+            } else {
+                alert("Peer or Stream not available")
+            }
+
         })
 
-        getStream();
+        
 
         return () => {
             socket.off('connect', onConnect);
@@ -55,50 +100,43 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const callUser = (id: string) => {
-        let Peer = require('simple-peer');
-        const peer = new Peer({ initiator: true, trickle: false, stream });
+        if (stream && peer) {
+            console.log("Calling user", id);
+            console.log("Stream", stream);
+            console.log("Peer", peer);
 
-        peer.on('signal', (data: any) => {
-            console.log("Signal on Call", data);
-            socket.emit('call-user', {
-                to: id, 
-                signalData: data, 
-                // from: me
+            const call = peer.call(id, stream);
+            call.on("stream", (remoteStream) => {
+                console.log("Remote Stream", remoteStream);
+                if (userVideoRef.current) {
+                    userVideoRef.current.srcObject = remoteStream;
+                }
             });
-        });
-
-        peer.on('stream', (userStream: MediaStream) => {
-            console.log("Stream Receiveed userStream", userStream);
-            if (userVideoRef.current) {
-                userVideoRef.current.srcObject = userStream;
-            }
-        })
-
-        socket.on('answer-mode', async (data) => {
-            peer.signal(data.signalData);
-        });
+        } else {
+            alert("Peer or Stream not available")
+        }
     };
 
     const answerCall = () => {
-        let Peer = require('simple-peer');
-        const peer = new Peer({ initiator: false, trickle: false, stream });
+        // // let Peer = require('simple-peer');
+        // const peer = new Peer({ initiator: false, trickle: false, stream });
 
-        peer.on('signal', (data: any) => {
-            console.log("Signal on Answer", data);
-            socket.emit('call-answer', { 
-                to: call.from,
-                signalData: data,
-            });
-        });
+        // peer.on('signal', (data: any) => {
+        //     console.log("Signal on Answer", data);
+        //     socket.emit('call-answer', { 
+        //         to: call.from,
+        //         signalData: data,
+        //     });
+        // });
 
-        peer.on('stream', (userStream: MediaStream) => {
-            console.log("Stream answer Receiveed userStream", userStream);
-            if (userVideoRef.current) {
-                userVideoRef.current.srcObject = userStream;
-            }
-        });
+        // peer.on('stream', (userStream: MediaStream) => {
+        //     console.log("Stream answer Receiveed userStream", userStream);
+        //     if (userVideoRef.current) {
+        //         userVideoRef.current.srcObject = userStream;
+        //     }
+        // });
 
-        peer.signal(call.signalData);
+        // peer.signal(call.signalData);
     };
 
     return (

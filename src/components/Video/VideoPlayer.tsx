@@ -23,7 +23,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ }) => {
         autoPlay
         ref={socket.userVideoRef}
       />
-      <p>User ID: {socket.user}</p>
 
       <input type="text"
         placeholder="Enter user id"
@@ -33,9 +32,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ }) => {
         socket.callUser(userId);
       }}>Call</button>
 
-      <button onClick={() => {
-        socket.answerCall(socket.user);
-      }}>Answer</button>
+      {/* {socket.user && */}
+        <button onClick={() => {
+          socket.answerCall(socket.user);
+        }}>Answer</button>
+      {/* } */}
     </div>
   );
 };
