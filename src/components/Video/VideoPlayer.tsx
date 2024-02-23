@@ -14,6 +14,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ }) => {
       <video
         className={`h-full w-full ${style.mirrored}`}
         autoPlay
+        playsInline
+        loop
         ref={socket.myVideoRef}
       />
       <p>My ID: {socket.me}</p>
@@ -21,6 +23,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ }) => {
       <video
         className={`h-full w-full ${style.mirrored}`}
         autoPlay
+        playsInline
         ref={socket.userVideoRef}
       />
 
